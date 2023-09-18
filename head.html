@@ -1,49 +1,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <script>
-  document.addEventListener('satelliteLibLoaded', function() {
-    // Now that Launch is loaded, we can patch its methods
+  (function waitForSatellite() {
+    if (window.__satelliteLoaded) {
+      // Now that Launch is loaded, we can patch its methods
 
-    const originalSatelliteTrack = window._satellite.track;
-    const originalSatelliteGetVar = window._satellite.getVar;
+      const originalSatelliteTrack = window._satellite.track;
+      const originalSatelliteGetVar = window._satellite.getVar;
 
-    window.launchPerformanceMetrics = {
-      rules: {},
-      dataElements: {}
-    };
+      window.launchPerformanceMetrics = {
+        rules: {},
+        dataElements: {}
+      };
 
-    // Wrap _satellite.track
-    window._satellite.track = function(ruleName) {
-      const startTime = performance.now();
-      const result = originalSatelliteTrack.apply(this, arguments);
-      const endTime = performance.now();
+      // Wrap _satellite.track
+      window._satellite.track = function(ruleName) {
+        const startTime = performance.now();
+        const result = originalSatelliteTrack.apply(this, arguments);
+        const endTime = performance.now();
 
-      // Store metrics
-      window.launchPerformanceMetrics.rules[ruleName] = endTime - startTime;
-      console.log("Rule:", ruleName, "Execution Time:", (endTime - startTime) + "ms");
+        // Store metrics
+        window.launchPerformanceMetrics.rules[ruleName] = endTime - startTime;
+        console.log("Rule:", ruleName, "Execution Time:", (endTime - startTime) + "ms");
 
-      return result;
-    };
+        return result;
+      };
 
-    // Wrap _satellite.getVar if it returns a promise
-    window._satellite.getVar = function(dataElementName) {
-      const startTime = performance.now();
-      const resultPromise = originalSatelliteGetVar.apply(this, arguments);
+      // Wrap _satellite.getVar if it returns a promise
+      window._satellite.getVar = function(dataElementName) {
+        const startTime = performance.now();
+        const resultPromise = originalSatelliteGetVar.apply(this, arguments);
 
-      if (resultPromise && typeof resultPromise.then === 'function') {
-        resultPromise.then(function() {
-          const endTime = performance.now();
+        if (resultPromise && typeof resultPromise.then === 'function') {
+          resultPromise.then(function() {
+            const endTime = performance.now();
 
-          // Store metrics
-          window.launchPerformanceMetrics.dataElements[dataElementName] = endTime - startTime;
-          console.log("Data Element:", dataElementName, "Execution Time:", (endTime - startTime) + "ms");
-        });
-      }
+            // Store metrics
+            window.launchPerformanceMetrics.dataElements[dataElementName] = endTime - startTime;
+            console.log("Data Element:", dataElementName, "Execution Time:", (endTime - startTime) + "ms");
+          });
+        }
 
-      return resultPromise;
-    };
+        return resultPromise;
+      };
 
-    console.log("Launch Performance Instrumentation Initialized");
-  });
+      console.log("Launch Performance Instrumentation Initialized");
+
+    } else {
+      // If not loaded, check again in a short interval
+      setTimeout(waitForSatellite, 50);
+      console.log("Waiting for Launch to load...");
+    }
+  })();
 </script>
 <script src="/libs/scripts/scripts.js" type="module" crossorigin="use-credentials"></script>
 <link rel="stylesheet" href="/libs/styles/styles.css"/>

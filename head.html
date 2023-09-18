@@ -1,4 +1,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<script>
+  (function() {
+    // Backup original functions
+    const originalSatelliteTrack = window._satellite && window._satellite.track;
+    const originalSatelliteGetVar = window._satellite && window._satellite.getVar;
+
+    window.launchPerformanceMetrics = {
+      rules: {},
+      dataElements: {}
+    };
+
+    // Wrap _satellite.track
+    if (originalSatelliteTrack) {
+      window._satellite.track = function(ruleName) {
+        const startTime = performance.now();
+        const result = originalSatelliteTrack.apply(this, arguments);
+        const endTime = performance.now();
+
+        // Store metrics
+        window.launchPerformanceMetrics.rules[ruleName] = endTime - startTime;
+        console.log("Rule:", ruleName, "Execution Time:", (endTime - startTime) + "ms");
+
+        return result;
+      };
+    }
+
+    // Wrap _satellite.getVar if it returns a promise
+    if (originalSatelliteGetVar) {
+      window._satellite.getVar = function(dataElementName) {
+        const startTime = performance.now();
+        const resultPromise = originalSatelliteGetVar.apply(this, arguments);
+
+        if (resultPromise && typeof resultPromise.then === 'function') {
+          resultPromise.then(function() {
+            const endTime = performance.now();
+
+            // Store metrics
+            window.launchPerformanceMetrics.dataElements[dataElementName] = endTime - startTime;
+            console.log("Data Element:", dataElementName, "Execution Time:", (endTime - startTime) + "ms");
+          });
+        }
+
+        return resultPromise;
+      };
+    }
+
+    console.log("Launch Performance Instrumentation Initialized");
+  })();
+</script>
 <script src="/libs/scripts/scripts.js" type="module" crossorigin="use-credentials"></script>
 <link rel="stylesheet" href="/libs/styles/styles.css"/>
 <link rel="icon" href="data:," size="any"/>
